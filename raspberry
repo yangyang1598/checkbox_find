@@ -1,0 +1,154 @@
+# 라즈베리파이 AP 설정
+
+**※ 라즈베리 파이 환경 내 실행**
+
+ 0.  (없는 경우) 서비스 설치
+
+1. hostapd & dnsmasq 설치
+    
+    ```powershell
+    $ sudo apt-get install hostapd -y
+    $ sudo apt-get install dnsmasq -y
+    ```
+    
+1. 실행 서비스 중단
+    1. hostapd & dnsmasq 중단
+        - hostapd: 라즈베리 시스템 내 AP 설정 및 관리 소프트웨어
+        - dnsmasq: 로컬 네트워크 내 활용가능한 DHCP/DNS 서버
+            
+            ```powershell
+            $ sudo systemctl stop hostapd
+            $ sudo systemctl stop dnsmasq
+            ```
+            
+2. dhcpcd 설정
+    1. dhcpcd 구성 설정 변경
+        1. /etc/dhcpcd.conf  파일 수정
+            
+            ```powershell
+            $ sudo nano /etc/dhcpcd.conf
+            ```
+            
+        2. 구성 파일 내 추가 내용
+            
+            ```powershell
+            denyinterface eth0 wlan0
+            interface br0
+            static ip_address=192.168.1.1/24
+            static routers=192.168.1.1
+            static domain_name_servers=8.8.8.8 1.1.1.1
+            ```
+            
+    2. dhcpcd 재시작
+        
+        ```powershell
+        $ sudo service dhcpcd restart
+        ```
+        
+    
+3. dnsmasq 설정
+    1. dnsmasq 구성 설정 변경
+        1. /etc/dnsmasq.conf  파일 수정
+            
+            ```powershell
+            $ sudo nano /etc/dnsmasq.conf
+            ```
+            
+        2. 구성 파일 내 추가 내용
+            
+            ```powershell
+            interface=br0
+            dhcp-range=192.168.1.1,192.168.1.250,24h
+            ```
+            
+    
+4. hostapd 설정
+    1. hostapd 구성 설정 변경
+        1.  /etc/hostapd/hostapd.conf 파일 수정
+            
+            ```powershell
+            $ sudo nano /etc/hostapd/hostapd.conf
+            ```
+            
+        2. 구성 파일 내 추가 내용
+            
+            ```powershell
+            interface=wlan0
+            bridge=br0
+            ssid=skyeyeAP
+            hw_mode=g
+            channel=7
+            macaddr_acl=0
+            auth_algs=1
+            ignore_broadcast_ssid=0
+            wpa=2
+            wpa_passphrase=tmzkdltltm
+            wpa_key_mgmt=WPA-PSK
+            wpa_pairwise=TKIP
+            rsn_pairwise=CCMP
+            ```
+            
+    
+5. 서비스 실행
+    1. 라즈베리파이 재실행
+        
+        ```powershell
+        $ sudo reboot
+        ```
+        
+    2. hostapd & dnsmasq 서비스 실행
+        
+        ```powershell
+        $ sudo systemctl start hostapd
+        $ sudo systemctl start dnsmasq
+        ```
+        
+    
+
+1. 패킷 포워딩 활성화
+    1. sysctl 구성 설정 변경
+        1.  /etc/sysctl.conf 파일 수정
+            
+            ```powershell
+            $ sudo nano /etc/sysctl.conf
+            ```
+            
+        2. 주석 제거
+            
+            ```powershell
+            #net.ipv4.ip_forward=1
+            ```
+            
+2. 네트워크 라우터 역할 설정
+    1. 내부장치→ 외부 네트워크 라우팅
+        
+        ```powershell
+        $ sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+        ```
+        
+    2. 시스템 재부팅 시 NAT 규칙 유지
+        
+        ```powershell
+        $ sudo sh -c "iptables-save > /etc/iptables.ipv4.nat" 
+        ```
+        
+
+1. 부팅 시 적용
+    1.  rc.local  구성 변경
+        1. /etc/rc.local 파일 수정
+            
+            ```powershell
+            $ sudo nano /etc/rc.local
+            ```
+            
+        2. 구성 파일 내 추가 내용
+            
+            ```powershell
+            iptables-restore < /etc/iptables.ipv4.nat
+            ```
+            
+        3. hostapd 재시작
+            
+            ```powershell
+            sudo systemctl start hostapd
+            ```
